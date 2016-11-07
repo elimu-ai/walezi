@@ -125,10 +125,24 @@ public class Gem extends TileOccupant implements StepListener {
 	
 	protected final static void playSound(final GemInfo info) {
 		final long clock = Pangine.getEngine().getClock();
-		if (clock > lastSound) {
-			FurGuardiansGame.soundGem.startSound();
-			lastSound = clock + 1;
-		}
+                if (clock > lastSound) {
+                    if ((info == null) || (info.letterIndex < 0)) { 
+                        // Play default sounds
+                        FurGuardiansGame.soundGem.startSound();
+                    } else {
+                        // Play sound of letter
+                        String letter = String.valueOf(FurGuardiansGame.blockWord.charAt(info.letterIndex));
+                        if ("a".equals(letter.toLowerCase())) {
+                            FurGuardiansGame.soundLetterA.startSound();
+                        } else if ("i".equals(letter.toLowerCase())) {
+                            FurGuardiansGame.soundLetterI.startSound();
+                        } else if ("u".equals(letter.toLowerCase())) {
+                            FurGuardiansGame.soundLetterU.startSound();
+                        }
+                    }
+                    
+                    lastSound = clock + 1;
+                }
 	}
 	
 	protected final static class GemAttracted extends Panctor implements StepListener {

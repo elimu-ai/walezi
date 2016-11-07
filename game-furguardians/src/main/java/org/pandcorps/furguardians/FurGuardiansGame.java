@@ -325,7 +325,7 @@ public class FurGuardiansGame extends BaseGame {
 	protected static Panimation gemGreenWorldAnm = null;
 	protected static Panimation gemWhiteWorldAnm = null;
 	protected static Panimation gemWordAnm = null;
-	protected final static String defaultBlockWord = "FUR";
+	protected final static String defaultBlockWord = "AIU";
 	protected static String blockWord = defaultBlockWord;
 	protected static Panmage[] gemLetters = null;
 	protected static Panmage[] blockLetters = null;
@@ -429,6 +429,9 @@ public class FurGuardiansGame extends BaseGame {
 	protected static Pansound musicLevelStart = null;
 	protected static Pansound musicLevelEnd = null;
 	protected static Pansound soundGem = null;
+        protected static Pansound soundLetterA = null;
+        protected static Pansound soundLetterI = null;
+        protected static Pansound soundLetterU = null;
 	protected static Pansound soundJump = null;
 	protected static Pansound soundBounce = null;
 	protected static Pansound soundThud = null;
@@ -1906,6 +1909,9 @@ public class FurGuardiansGame extends BaseGame {
 	    	musicLevelStart = audio.createTransition(RES + "music/levelstart.mid");
 	    	musicLevelEnd = audio.createTransition(RES + "music/levelend.mid");
 	    	soundGem = audio.createSound(RES + "sound/gem.mid");
+                soundLetterA = audio.createSound(RES + "sound/letter_a.wav");
+                soundLetterI = audio.createSound(RES + "sound/letter_i.wav");
+                soundLetterU = audio.createSound(RES + "sound/letter_u.wav");
 	    	soundJump = audio.createSound(RES + "sound/jump.mid");
 	    	soundBounce = audio.createSound(RES + "sound/bounce.mid");
 	    	soundThud = audio.createSound(RES + "sound/thud.mid");
