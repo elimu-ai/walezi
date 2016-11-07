@@ -39,10 +39,15 @@ public abstract class Enemy extends Chr implements CollisionListener {
     protected Enemy(final int offX, final int h, final int x, final int y, final int health) {
         super(offX, h);
         this.health = health;
-        BotsnBoltsGame.tm.getLayer().addActor(this);
         final Panple pos = getPosition();
         BotsnBoltsGame.tm.savePosition(pos, x, y);
         pos.setZ(BotsnBoltsGame.DEPTH_ENEMY);
+    }
+    
+    @Override
+    protected boolean onFell() {
+        destroy();
+        return true;
     }
     
     @Override
@@ -103,6 +108,14 @@ public abstract class Enemy extends Chr implements CollisionListener {
         }
     }
     
+    protected final void turnTowardPlayer() {
+        final Player player = getNearestPlayer();
+        if (player == null) {
+            return;
+        }
+        setMirror(getPosition().getX() > player.getPosition().getX());
+    }
+    
     protected final Player getNearestPlayer() {
         return PlayerContext.getPlayer(BotsnBoltsGame.pc);
     }
@@ -119,6 +132,11 @@ public abstract class Enemy extends Chr implements CollisionListener {
             return -1;
         }
         return 0;
+    }
+    
+    protected final boolean isSolidIndex(final int index) {
+        final byte b = Tile.getBehavior(BotsnBoltsGame.tm.getTile(index));
+        return (b == Tile.BEHAVIOR_SOLID) || isSolidBehavior(b);
     }
     
     protected final static class EnemyProjectile extends Pandy implements CollisionListener, AllOobListener {
@@ -310,7 +328,7 @@ public abstract class Enemy extends Chr implements CollisionListener {
         }
     }
     
-    protected final static int PROP_OFF_X = 4, PROP_H = 10;
+    protected final static int PROP_OFF_X = 4, PROP_H = 12;
     
     protected final static class PropEnemy extends Enemy {
         protected PropEnemy(final int x, final int y) {
@@ -339,20 +357,65 @@ public abstract class Enemy extends Chr implements CollisionListener {
         }
     }
     
-    protected final static class SpringEnemy extends Enemy {
-        protected SpringEnemy(final int x, final int y) {
-            super(PROP_OFF_X, PROP_H, x, y, 2);
-            endSpring();
+    private abstract static class JumpEnemy extends Enemy implements RoomAddListener {
+        private boolean scheduled = false;
+        
+        protected JumpEnemy(final int offX, final int h, final int x, final int y, final int health) {
+            super(offX, h, x, y, health);
+        }
+        
+        @Override
+        public final void onRoomAdd(final RoomAddEvent event) {
             schedule();
         }
         
-        private final void schedule() {
+        protected final void schedule() {
+            if (scheduled) {
+                return;
+            }
+            scheduled = true;
+            Pangine.getEngine().addTimer(this, 30, new TimerListener() {
+                @Override
+                public final void onTimer(final TimerEvent event) {
+                    jump();
+                }});
         }
         
         protected final void jump() {
+            scheduled = false;
+            if (!canJump()) {
+                schedule();
+                return;
+            }
+            onJump();
+        }
+        
+        protected boolean canJump() {
+            return isGrounded();
+        }
+        
+        protected abstract void onJump();
+        
+        @Override
+        protected final void award(final PowerUp powerUp) {
+            
+        }
+    }
+    
+    protected final static class SpringEnemy extends JumpEnemy {
+        protected SpringEnemy(final int x, final int y) {
+            super(PROP_OFF_X, PROP_H, x, y, 2);
+            endSpring();
+        }
+        
+        @Override
+        protected final void onJump() {
+            turnTowardPlayer();
+            hv = isMirror() ? -1 : 1;
+            v = 2;
+            addY();
             v = 8;
             setView(BotsnBoltsGame.springEnemy[1]);
-            schedule();
         }
         
         private final void endSpring() {
@@ -360,18 +423,118 @@ public abstract class Enemy extends Chr implements CollisionListener {
         }
         
         @Override
+        protected final boolean onStepCustom() {
+            if (v < 0) {
+                endSpring();
+            }
+            return false;
+        }
+        
+        @Override
         protected final void onLanded() {
+            super.onLanded();
+            hv = 0;
             endSpring();
+            schedule();
         }
         
         @Override
         protected final void onBump(final int t) {
             endSpring();
         }
+    }
+    
+    // Spider legs? Gear?
+    protected final static class CrawlEnemy extends TileUnawareEnemy {
+        private final static int VEL = 1;
+        private final static int DURATION = 16 / VEL;
+        private int tileIndex;
+        private Direction surfaceDirection;
+        private int velX;
+        private int velY;
+        private int timer = 0;
         
+        protected CrawlEnemy(final int x, final int y) {
+            super(x, y, 2);
+            final TileMap tm = BotsnBoltsGame.tm;
+            tileIndex = tm.getIndexRequired(x, y);
+            for (final Direction dir : Direction.values()) {
+                final int surfaceTileIndex = tm.getNeighbor(tileIndex, dir);
+                if (isSolidIndex(surfaceTileIndex)) {
+                    setSurfaceDirection(dir);
+                    break;
+                }
+            }
+            setView(BotsnBoltsGame.crawlEnemy);
+        }
+        
+        private final void setSurfaceDirection(final Direction surfaceDirection) {
+            this.surfaceDirection = surfaceDirection;
+            if (surfaceDirection == Direction.South) {
+                velX = -1;
+                velY = 0;
+            } else if (surfaceDirection == Direction.West) {
+                velX = 0;
+                velY = 1;
+            } else if (surfaceDirection == Direction.North) {
+                velX = 1;
+                velY = 0;
+            } else if (surfaceDirection == Direction.East) {
+                velX = 0;
+                velY = -1;
+            } else {
+                throw new IllegalStateException("Unexpected Direction: " + surfaceDirection);
+            }
+        }
+        
+        private final void updateSurfaceDirection() {
+            final TileMap tm = BotsnBoltsGame.tm;
+            final Direction velocityDirection = surfaceDirection.getClockwise();
+            tileIndex = tm.getNeighbor(tileIndex, velocityDirection);
+            final int surfaceTileIndex = tm.getNeighbor(tileIndex, surfaceDirection);
+            if (!isSolidIndex(surfaceTileIndex)) {
+                setSurfaceDirection(surfaceDirection.getCounterclockwise());
+            } else if (isSolidIndex(tm.getNeighbor(tileIndex, velocityDirection))) {
+                setSurfaceDirection(velocityDirection);
+            }
+        }
+        
+        @Override
+        protected final void onStepEnemy() {
+            getPosition().add(velX, velY);
+            timer++;
+            if (timer >= DURATION) {
+                updateSurfaceDirection();
+                timer = 0;
+            }
+        }
+
         @Override
         protected final void award(final PowerUp powerUp) {
             
+        }
+    }
+    
+    protected final static class FireballEnemy extends JumpEnemy {
+        protected FireballEnemy(int x, int y) {
+            super(PROP_OFF_X, PROP_H, x, y, 1);
+            //setView(); //TODO
+        }
+        
+        @Override
+        protected final boolean canJump() {
+            return super.canJump() || (getPosition().getY() <= 0);
+        }
+
+        @Override
+        protected final void onJump() {
+            v = 8;
+        }
+        
+        @Override
+        protected boolean onFell() {
+            schedule();
+            return true;
         }
     }
 }

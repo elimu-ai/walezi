@@ -168,6 +168,10 @@ public abstract class BlockPuzzle {
         }
     }
     
+    // Blocks fade in when Player approaches; fade out when Player leaves
+    protected final static class HiddenBlock { //TODO
+    }
+    
     protected final static class SpikeBlockPuzzle extends Panctor implements StepListener {
         private final static int vel = 3;
         private final static int timeAdd = (15 / vel) + 1;
@@ -296,5 +300,17 @@ public abstract class BlockPuzzle {
         @Override
         protected final void award(final PowerUp powerUp) {
         }
+    }
+    
+    /*
+    Will react when Player stands on it.
+    Might shoot flames.
+    Might have other possible behavior.
+    Might also have different colored blocks that use same behavior(s) based on a timer instead of pressure
+    */
+    protected final static class PressureBlock { //TODO
+    }
+    
+    protected final static class ConveyorBelt { //TODO
     }
 }
