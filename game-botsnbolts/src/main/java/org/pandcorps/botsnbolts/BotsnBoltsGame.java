@@ -49,6 +49,11 @@ public final class BotsnBoltsGame extends BaseGame {
     
     protected final static String RES = "org/pandcorps/botsnbolts/";
     
+    protected final static int GAME_COLUMNS = 24;
+    protected final static int GAME_ROWS = 14;
+    protected final static int GAME_W = GAME_COLUMNS * 16; // 384
+    protected final static int GAME_H = GAME_ROWS * 16; // 224;
+    
     protected final static byte TILE_LADDER = 2; // Works like non-solid when not climbing
     protected final static byte TILE_LADDER_TOP = 3; // Works like floor when not climbing
     protected final static byte TILE_FLOOR = 4; // Used for blocks that fade in/out
@@ -86,6 +91,7 @@ public final class BotsnBoltsGame extends BaseGame {
     protected static ShootableDoorDefinition doorSilver = null;
     protected static ShootableDoorDefinition doorSmall = null;
     protected static Panmage doorBoss = null;
+    protected static Panmage ladder = null;
     protected static Panmage[] blockCyan = null;
     protected static Panmage[] blockTimed = null;
     protected static Panmage blockSpike = null;
@@ -94,6 +100,7 @@ public final class BotsnBoltsGame extends BaseGame {
     protected static Panmage[] sentryGun = null;
     protected static Panimation propEnemy = null;
     protected static Panmage[] springEnemy = null;
+    protected static Panimation crawlEnemy = null;
     protected static Panmage enemyProjectile = null;
     protected static Panimation enemyBurst = null;
     protected static HudMeterImages hudMeterBlank = null;
@@ -114,12 +121,12 @@ public final class BotsnBoltsGame extends BaseGame {
     
     @Override
     protected final int getGameWidth() {
-        return 384; // 24 tiles
+        return GAME_W; // 24 tiles
     }
     
     @Override
     protected final int getGameHeight() {
-        return 224; // 14 tiles
+        return GAME_H; // 14 tiles
     }
     
     @Override
@@ -147,6 +154,7 @@ public final class BotsnBoltsGame extends BaseGame {
         loadMisc();
         loadEnemies();
         loadPlayer();
+        RoomLoader.loadRooms();
     }
     
     private final static void loadDoors() {
@@ -195,6 +203,7 @@ public final class BotsnBoltsGame extends BaseGame {
         final Pangine engine = Pangine.getEngine();
         hudMeterBlank = newHudMeterImages("meter.blank", RES + "misc/MeterBlank.png");
         cube = newSheet("cube", RES + "misc/Cube.png", 16);
+        ladder = engine.createImage("ladder", RES + "bg/Ladder.png");
         blockCyan = newSheet("block.cyan", RES + "bg/BlockCyan.png", 16, FinPanple.ORIGIN, ShootableDoor.minBarrier, new FinPanple2(14, 16));
         blockTimed = blockCyan; //TODO
         blockSpike = engine.createImage("block.spike", RES + "bg/BlockSpike.png");
@@ -209,8 +218,10 @@ public final class BotsnBoltsGame extends BaseGame {
         for (int i = 0; i < sentrySize; i++) {
             sentryGun[i] = engine.createImage("sentry.gun." + i, CENTER_16, minCube, maxCube, sentryImgs[i]);
         }
-        propEnemy = newAnimation("prop.enemy", RES + "/enemy/PropEnemy.png", 16, new FinPanple2(8, 1), Chr.getMin(Enemy.PROP_OFF_X), Chr.getMax(Enemy.PROP_OFF_X, Enemy.PROP_H), 4);
-        springEnemy = null; //TODO
+        final Panple propO = new FinPanple2(8, 1), propMin = Chr.getMin(Enemy.PROP_OFF_X), propMax = Chr.getMax(Enemy.PROP_OFF_X, Enemy.PROP_H);
+        propEnemy = newAnimation("prop.enemy", RES + "/enemy/PropEnemy.png", 16, propO, propMin, propMax, 4);
+        springEnemy = newSheet("spring.enemy", RES + "/enemy/SpringEnemy.png", 16, new FinPanple2(8, 3), propMin, propMax);
+        crawlEnemy = null; //TODO
         enemyProjectile = engine.createImage("projectile.enemy", CENTER_8, new FinPanple2(-2, -2), new FinPanple2(2, 2), RES + "/enemy/EnemyProjectile.png");
         enemyBurst = newAnimation("burst.enemy", RES + "/enemy/EnemyBurst.png", 16, CENTER_16, 2);
     }
@@ -250,9 +261,8 @@ public final class BotsnBoltsGame extends BaseGame {
         final Panmage climb = newPlayerImage(pre + "Climb", oClimb, climbImgs, climbImgsMirror, 0);
         final Panmage climbShoot = newPlayerImage(pre + "Climb.Shoot", oClimb, climbImgs, climbImgsMirror, 1);
         final Panmage climbTop = newPlayerImage(pre + "Climb.Top", oClimb, climbImgs, climbImgsMirror, 2);
-        final Panmage basicProjectile = engine.createImage(pre + "Projectile", new FinPanple2(3, 3), new FinPanple2(-3, -1), new FinPanple2(5, 3), pre + "Projectile.png");
-        //final Panimation projectile2 = newAnimation(pre + "Projectile2", pre + "Projectile2.png", 16, new FinPanple2(7, 7), new FinPanple2(-4, -4), new FinPanple2(8, 6), 4);
-        final Panimation projectile2 = newFlipper(pre + "Projectile2", pre + "Projectile2.png", new FinPanple2(7, 7), new FinPanple2(-4, -4), new FinPanple2(8, 6), 4);
+        final Panmage basicProjectile = engine.createImage(pre + "Projectile", new FinPanple2(3, 3), new FinPanple2(-3, -2), new FinPanple2(5, 3), pre + "Projectile.png");
+        final Panimation projectile2 = newFlipper(pre + "Projectile2", pre + "Projectile2.png", new FinPanple2(7, 7), new FinPanple2(-4, -5), new FinPanple2(8, 6), 4);
         final Panimation projectile3 = newProjectile3(pre);
         final Panimation burst = newAnimation(pre + "Burst", pre + "Burst.png", 16, CENTER_16, 2);
         final Panimation charge = newAnimation(pre + "Charge", pre + "Charge.png", 8, null, 1);
@@ -323,7 +333,7 @@ public final class BotsnBoltsGame extends BaseGame {
         final Img[] imgs = Imtil.loadStrip(pre + "Projectile3.png", 32);
         final Panmage img0 = engine.createImage(pre + ".0", imgs[0]);
         final Panmage img1 = engine.createImage(pre + ".1", imgs[1]);
-        final Panple o = new FinPanple2(23, 7), min = new FinPanple2(-6, -6), max = new FinPanple2(8, 8), size = new FinPanple2(32, 16);
+        final Panple o = new FinPanple2(23, 7), min = new FinPanple2(-6, -7), max = new FinPanple2(8, 8), size = new FinPanple2(32, 16);
         return engine.createAnimation(pre + ".anm",
             newProjectile3Frame(pre, 0, o, min, max, img0, 0, 0, size),
             newProjectile3Frame(pre, 1, o, min, max, img0, 0, 16, size),
@@ -549,19 +559,21 @@ public final class BotsnBoltsGame extends BaseGame {
             //final Panroom room = Pangame.getGame().getCurrentRoom();
             //initRoom(room);
             //fillRoom(room);
-            final Panroom room = Player.loadRoom("Demo1");
+            final Panroom room = Player.loadRoom(RoomLoader.getRoom(0, 0));
             Pangame.getGame().setCurrentRoom(room);
             newPlayer(room);
+            RoomLoader.onChangeFinished();
         }
         
-        protected final static Panroom newRoom() {
-            final Panroom room = Pangine.getEngine().createRoom(Pantil.vmid(), (FinPanple) Pangame.getGame().getCurrentRoom().getSize());
+        protected final static Panroom newRoom(final int w) {
+            final Panple size = Pangame.getGame().getCurrentRoom().getSize();
+            final Panroom room = Pangine.getEngine().createRoom(Pantil.vmid(), w, size.getY(), size.getZ());
             initRoom(room);
             return room;
         }
         
         protected final static Panroom newDemoRoom() {
-            final Panroom room = newRoom();
+            final Panroom room = newRoom(GAME_W);
             fillRoom(room);
             return room;
         }
@@ -649,6 +661,7 @@ public final class BotsnBoltsGame extends BaseGame {
             final Player player = new Player(pc);
             player.getPosition().set(48, 96, DEPTH_PLAYER);
             room.addActor(player);
+            Pangine.getEngine().track(player);
             newHud(room, player);
         }
         
@@ -659,6 +672,11 @@ public final class BotsnBoltsGame extends BaseGame {
             hud = createHud(room);
             hud.setClearDepthEnabled(false);
             hud.addActor(healthMeter);
+        }
+        
+        @Override
+        protected final void step() {
+            RoomLoader.step();
         }
     }
     
